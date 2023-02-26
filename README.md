@@ -1,2 +1,5 @@
 # Analyze-url-extention
-For people who need to updated to URL by +1
+
+
+This repo was create for people who read or watch online and want to go to the next chapter or episode without clicking on built in buttons and seeing ads.
+
