@@ -1,0 +1,15 @@
+{
+  "name": "URL Analyzer",
+  "version": "1.0",
+  "description": "A Chrome extension that analyzes and modifies URLs.",
+  "manifest_version": 2,
+ "background" : {
+    "scripts" : [
+      "popup.js"
+    ]
+  },
+  "browser_action": {},
+  "permissions": [
+    "tabs", "<all_urls>","activeTab"
+  ]
+}
