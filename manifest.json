@@ -1,15 +1,25 @@
 {
-  "name": "URL Analyzer",
+  "manifest_version": 3,
+  "name": "Chapter URL Incrementer",
   "version": "1.0",
-  "description": "A Chrome extension that analyzes and modifies URLs.",
-  "manifest_version": 2,
- "background" : {
-    "scripts" : [
-      "popup.js"
-    ]
-  },
-  "browser_action": {},
+  "description": "Automatically increment chapter numbers in URLs",
   "permissions": [
-    "tabs", "<all_urls>","activeTab"
-  ]
+    "activeTab",
+    "scripting"
+  ],
+  "host_permissions": [
+    "https://toonily.com/*"
+  ],
+  "content_scripts": [
+    {
+      "matches": ["https://toonily.com/serie/*/chapter-*"],
+      "js": ["content.js"],
+      "run_at": "document_end"
+    }
+  ],
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "Chapter URL Incrementer",
+    "default_icon": "icon.png"
+  }
 }
