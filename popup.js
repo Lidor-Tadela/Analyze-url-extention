@@ -23,6 +23,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const saveBtn = $('saveBtn');
   const cancelBtn = $('cancelBtn');
   const toggle = $('shortcutsToggle');
+  const panelToggle = $('panelToggle');
   const optionsLink = $('optionsLink');
 
   let activeTabId = null;
@@ -51,11 +52,15 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   });
 
-  chrome.storage.sync.get({ shortcutsEnabled: true }, ({ shortcutsEnabled }) => {
+  chrome.storage.sync.get({ shortcutsEnabled: true, showPanel: true }, ({ shortcutsEnabled, showPanel }) => {
     toggle.checked = !!shortcutsEnabled;
+    panelToggle.checked = showPanel !== false;
   });
   toggle.addEventListener('change', () => {
     chrome.storage.sync.set({ shortcutsEnabled: toggle.checked });
+  });
+  panelToggle.addEventListener('change', () => {
+    chrome.storage.sync.set({ showPanel: panelToggle.checked });
   });
 
   function send(action) {
