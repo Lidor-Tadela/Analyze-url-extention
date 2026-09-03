@@ -1,72 +1,68 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <meta charset="utf-8">
-    <style>
-        body {
-            width: 200px;
-            padding: 15px;
-            font-family: Arial, sans-serif;
-            margin: 0;
-        }
-
-        h3 {
-            margin: 0 0 15px 0;
-            font-size: 16px;
-            text-align: center;
-        }
-
-        button {
-            width: 100%;
-            padding: 10px;
-            margin: 5px 0;
-            border: none;
-            border-radius: 5px;
-            cursor: pointer;
-            font-size: 14px;
-            font-weight: bold;
-            transition: background 0.3s;
-        }
-
-        .next-btn {
-            background: #4CAF50;
-            color: white;
-        }
-
-        .next-btn:hover {
-            background: #45a049;
-        }
-
-        .prev-btn {
-            background: #2196F3;
-            color: white;
-        }
-
-        .prev-btn:hover {
-            background: #1976D2;
-        }
-
-        .info {
-            font-size: 12px;
-            color: #666;
-            text-align: center;
-            margin-top: 10px;
-            line-height: 1.4;
-        }
-    </style>
+<meta charset="utf-8">
+<style>
+  body {
+    width: 240px;
+    padding: 15px;
+    font-family: Arial, sans-serif;
+    margin: 0;
+  }
+  h3 { margin: 0 0 12px 0; font-size: 15px; text-align: center; }
+  .status {
+    font-size: 12px;
+    color: #333;
+    text-align: center;
+    margin-bottom: 12px;
+    min-height: 32px;
+  }
+  .status.nomatch { color: #999; }
+  button {
+    width: 100%;
+    padding: 10px;
+    margin: 5px 0;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: bold;
+    color: white;
+  }
+  button:disabled { opacity: 0.5; cursor: not-allowed; }
+  .next-btn { background: #4CAF50; }
+  .next-btn:hover:not(:disabled) { background: #45a049; }
+  .prev-btn { background: #2196F3; }
+  .prev-btn:hover:not(:disabled) { background: #1976D2; }
+  .toggle-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-top: 12px;
+    font-size: 12px;
+  }
+  .options-link {
+    display: block;
+    text-align: center;
+    margin-top: 10px;
+    font-size: 12px;
+    color: #2196F3;
+    cursor: pointer;
+    text-decoration: underline;
+  }
+</style>
 </head>
 <body>
-    <h3>Chapter Navigation</h3>
-
-    <button id="nextChapter" class="next-btn">Next Chapter</button>
-    <button id="prevChapter" class="prev-btn">Previous Chapter</button>
-
-    <div class="info">
-        <strong>Keyboard shortcuts:</strong><br>
-        → or N: Next chapter<br>
-        ← or P: Previous chapter
-    </div>
-
-    <script src="popup.js"></script>
+  <h3>Next Part Navigator</h3>
+  <div id="status" class="status">Checking page…</div>
+  <button id="nextBtn" class="next-btn" disabled>Next</button>
+  <button id="prevBtn" class="prev-btn" disabled>Previous</button>
+  <div class="toggle-row">
+    <label for="shortcutsToggle">Keyboard shortcut</label>
+    <input type="checkbox" id="shortcutsToggle">
+  </div>
+  <a id="optionsLink" class="options-link">Manage site rules…</a>
+  <script src="rules.js"></script>
+  <script src="popup.js"></script>
 </body>
 </html>

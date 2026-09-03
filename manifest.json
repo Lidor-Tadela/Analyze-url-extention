@@ -1,25 +1,38 @@
 {
   "manifest_version": 3,
-  "name": "Chapter URL Incrementer",
-  "version": "1.0",
-  "description": "Automatically increment chapter numbers in URLs",
+  "name": "Next Part Navigator",
+  "version": "2.0",
+  "description": "Configurable Next/Previous chapter or episode navigation for manga, comic, and show/anime sites, with an optional keyboard shortcut.",
   "permissions": [
-    "activeTab",
-    "scripting"
+    "storage"
   ],
   "host_permissions": [
-    "https://toonily.com/*"
+    "<all_urls>"
   ],
+  "background": {
+    "service_worker": "background.js"
+  },
   "content_scripts": [
     {
-      "matches": ["https://toonily.com/serie/*/chapter-*"],
-      "js": ["content.js"],
-      "run_at": "document_end"
+      "matches": ["<all_urls>"],
+      "js": ["rules.js", "content.js"],
+      "run_at": "document_idle"
     }
   ],
   "action": {
     "default_popup": "popup.html",
-    "default_title": "Chapter URL Incrementer",
+    "default_title": "Next Part Navigator",
     "default_icon": "icon.png"
+  },
+  "options_page": "options.html",
+  "commands": {
+    "next-part": {
+      "suggested_key": { "default": "Alt+Shift+Right" },
+      "description": "Go to next chapter/episode"
+    },
+    "prev-part": {
+      "suggested_key": { "default": "Alt+Shift+Left" },
+      "description": "Go to previous chapter/episode"
+    }
   }
 }

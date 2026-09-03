@@ -1,66 +1,57 @@
-// Popup script for the extension
+// Popup script: shows whether a rule matches the current tab, and offers
+// Next/Prev buttons plus the keyboard-shortcut toggle. Navigation is done
+// via a message to the content script (which already has the matched rule
+// and does the URL computation), not by injecting a function - this avoids
+// duplicating the rule-matching logic here.
+
 document.addEventListener('DOMContentLoaded', () => {
-  const nextBtn = document.getElementById('nextChapter');
-  const prevBtn = document.getElementById('prevChapter');
+  const statusEl = document.getElementById('status');
+  const nextBtn = document.getElementById('nextBtn');
+  const prevBtn = document.getElementById('prevBtn');
+  const toggle = document.getElementById('shortcutsToggle');
+  const optionsLink = document.getElementById('optionsLink');
 
-  // Function to execute script in the active tab
-  async function executeInActiveTab(func) {
-    try {
-      const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+  let activeTabId = null;
 
-      if (!tab.url.includes('toonily.com/serie/') || !tab.url.includes('/chapter-')) {
-        alert('This extension only works on Toonily chapter pages!');
-        return;
+  chrome.tabs.query({ active: true, currentWindow: true }, ([tab]) => {
+    if (!tab) return;
+    activeTabId = tab.id;
+
+    chrome.storage.sync.get({ rules: null }, ({ rules }) => {
+      const ruleSet = rules && rules.length ? rules : DEFAULT_RULES;
+      const found = findMatchingRule(tab.url || '', ruleSet);
+      if (found) {
+        statusEl.textContent = `Matched: ${found.rule.name}`;
+        statusEl.classList.remove('nomatch');
+        nextBtn.disabled = false;
+        prevBtn.disabled = false;
+      } else {
+        statusEl.textContent = 'No rule matches this page. Add one in options.';
+        statusEl.classList.add('nomatch');
       }
-
-      await chrome.scripting.executeScript({
-        target: { tabId: tab.id },
-        func: func
-      });
-
-      // Close popup after action
-      window.close();
-    } catch (error) {
-      console.error('Error executing script:', error);
-    }
-  }
-
-  // Next chapter function
-  function goToNextChapter() {
-    const currentUrl = window.location.href;
-    const chapterRegex = /\/chapter-(\d+)(?:\/)?$/;
-    const match = currentUrl.match(chapterRegex);
-
-    if (match) {
-      const currentChapter = parseInt(match[1]);
-      const nextChapter = currentChapter + 1;
-      const newUrl = currentUrl.replace(chapterRegex, `/chapter-${nextChapter}/`);
-      window.location.href = newUrl;
-    }
-  }
-
-  // Previous chapter function
-  function goToPrevChapter() {
-    const currentUrl = window.location.href;
-    const chapterRegex = /\/chapter-(\d+)(?:\/)?$/;
-    const match = currentUrl.match(chapterRegex);
-
-    if (match) {
-      const currentChapter = parseInt(match[1]);
-      if (currentChapter > 1) {
-        const prevChapter = currentChapter - 1;
-        const newUrl = currentUrl.replace(chapterRegex, `/chapter-${prevChapter}/`);
-        window.location.href = newUrl;
-      }
-    }
-  }
-
-  // Event listeners
-  nextBtn.addEventListener('click', () => {
-    executeInActiveTab(goToNextChapter);
+    });
   });
 
-  prevBtn.addEventListener('click', () => {
-    executeInActiveTab(goToPrevChapter);
+  chrome.storage.sync.get({ shortcutsEnabled: true }, ({ shortcutsEnabled }) => {
+    toggle.checked = !!shortcutsEnabled;
+  });
+
+  toggle.addEventListener('change', () => {
+    chrome.storage.sync.set({ shortcutsEnabled: toggle.checked });
+  });
+
+  function send(action) {
+    if (activeTabId == null) return;
+    chrome.tabs.sendMessage(activeTabId, { action }, () => {
+      void chrome.runtime.lastError;
+    });
+    window.close();
+  }
+
+  nextBtn.addEventListener('click', () => send('go-next'));
+  prevBtn.addEventListener('click', () => send('go-prev'));
+
+  optionsLink.addEventListener('click', () => {
+    chrome.runtime.openOptionsPage();
   });
 });

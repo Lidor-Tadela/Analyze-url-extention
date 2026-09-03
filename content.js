@@ -1,39 +1,39 @@
-// Content script to handle URL modification
-function incrementChapterInUrl() {
-  const currentUrl = window.location.href;
+// Content script: injects Next/Prev buttons and an optional keyboard
+// shortcut on any page matching one of the configured rules (see rules.js).
+// Loaded after rules.js - see manifest.json content_scripts order.
 
-  // Match pattern: https://toonily.com/serie/[series-name]/chapter-[number]
-  const chapterRegex = /\/chapter-(\d+)(?:\/)?$/;
-  const match = currentUrl.match(chapterRegex);
+let activeMatch = null; // { rule, match } for the current page, or null
 
-  if (match) {
-    const currentChapter = parseInt(match[1]);
-    const nextChapter = currentChapter + 1;
-
-    // Create new URL with incremented chapter
-    const newUrl = currentUrl.replace(chapterRegex, `/chapter-${nextChapter}/`);
-
-    return newUrl;
-  }
-
-  return null;
+function getSettings(cb) {
+  chrome.storage.sync.get({ rules: null, shortcutsEnabled: true }, (data) => {
+    const rules = data.rules && data.rules.length ? data.rules : DEFAULT_RULES;
+    cb(rules, data.shortcutsEnabled);
+  });
 }
 
-// Add navigation buttons to the page
-function addNavigationButtons() {
-  // Check if buttons already exist
-  if (document.getElementById('chapter-nav-extension')) {
-    return;
-  }
+function navigate(delta) {
+  if (!activeMatch) return;
+  const nextUrl = computeAdjacentUrl(window.location.href, activeMatch.rule, delta);
+  if (nextUrl) window.location.href = nextUrl;
+}
 
+function removeNavigationButtons() {
+  const el = document.getElementById('url-nav-extension');
+  if (el) el.remove();
+}
+
+function addNavigationButtons(rule) {
+  if (document.getElementById('url-nav-extension')) return;
+
+  const label = rule.label || 'Part';
   const navContainer = document.createElement('div');
-  navContainer.id = 'chapter-nav-extension';
+  navContainer.id = 'url-nav-extension';
   navContainer.style.cssText = `
     position: fixed;
     top: 50%;
     right: 20px;
     transform: translateY(-50%);
-    z-index: 10000;
+    z-index: 2147483647;
     display: flex;
     flex-direction: column;
     gap: 10px;
@@ -41,136 +41,134 @@ function addNavigationButtons() {
     padding: 15px;
     border-radius: 8px;
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+    font-family: Arial, sans-serif;
   `;
 
-  // Next chapter button
-  const nextBtn = document.createElement('button');
-  nextBtn.textContent = 'Next Chapter';
-  nextBtn.style.cssText = `
-    padding: 10px 15px;
-    background: #4CAF50;
-    color: white;
-    border: none;
-    border-radius: 5px;
-    cursor: pointer;
-    font-size: 14px;
-    font-weight: bold;
-    transition: background 0.3s;
-  `;
+  const makeBtn = (text, color, hoverColor, onClick) => {
+    const btn = document.createElement('button');
+    btn.textContent = text;
+    btn.style.cssText = `
+      padding: 10px 15px;
+      background: ${color};
+      color: white;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+      font-size: 14px;
+      font-weight: bold;
+      transition: background 0.3s;
+    `;
+    btn.addEventListener('mouseenter', () => { btn.style.background = hoverColor; });
+    btn.addEventListener('mouseleave', () => { btn.style.background = color; });
+    btn.addEventListener('click', onClick);
+    return btn;
+  };
 
-  nextBtn.addEventListener('mouseenter', () => {
-    nextBtn.style.background = '#45a049';
-  });
-
-  nextBtn.addEventListener('mouseleave', () => {
-    nextBtn.style.background = '#4CAF50';
-  });
-
-  nextBtn.addEventListener('click', () => {
-    const nextUrl = incrementChapterInUrl();
-    if (nextUrl) {
-      window.location.href = nextUrl;
-    }
-  });
-
-  // Previous chapter button
-  const prevBtn = document.createElement('button');
-  prevBtn.textContent = 'Prev Chapter';
-  prevBtn.style.cssText = `
-    padding: 10px 15px;
-    background: #2196F3;
-    color: white;
-    border: none;
-    border-radius: 5px;
-    cursor: pointer;
-    font-size: 14px;
-    font-weight: bold;
-    transition: background 0.3s;
-  `;
-
-  prevBtn.addEventListener('mouseenter', () => {
-    prevBtn.style.background = '#1976D2';
-  });
-
-  prevBtn.addEventListener('mouseleave', () => {
-    prevBtn.style.background = '#2196F3';
-  });
-
-  prevBtn.addEventListener('click', () => {
-    const currentUrl = window.location.href;
-    const chapterRegex = /\/chapter-(\d+)(?:\/)?$/;
-    const match = currentUrl.match(chapterRegex);
-
-    if (match) {
-      const currentChapter = parseInt(match[1]);
-      if (currentChapter > 1) {
-        const prevChapter = currentChapter - 1;
-        const prevUrl = currentUrl.replace(chapterRegex, `/chapter-${prevChapter}/`);
-        window.location.href = prevUrl;
-      }
-    }
-  });
-
-  navContainer.appendChild(nextBtn);
-  navContainer.appendChild(prevBtn);
+  navContainer.appendChild(makeBtn(`Next ${label}`, '#4CAF50', '#45a049', () => navigate(1)));
+  navContainer.appendChild(makeBtn(`Prev ${label}`, '#2196F3', '#1976D2', () => navigate(-1)));
   document.body.appendChild(navContainer);
 }
 
-// Add keyboard shortcuts
-function addKeyboardShortcuts() {
-  document.addEventListener('keydown', (e) => {
-    // Only trigger if not typing in an input field
-    if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') {
-      return;
-    }
+function handleKeydown(e) {
+  // Guard: never touch keys (and never preventDefault) on a page where no
+  // rule matched. The content script runs on <all_urls>, so without this an
+  // enabled shortcut would swallow n / p / arrow keys on every site.
+  if (!activeMatch) return;
 
-    // Right arrow or 'n' for next chapter
-    if (e.key === 'ArrowRight' || e.key === 'n') {
-      e.preventDefault();
-      const nextUrl = incrementChapterInUrl();
-      if (nextUrl) {
-        window.location.href = nextUrl;
-      }
-    }
+  const t = e.target;
+  if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable)) return;
 
-    // Left arrow or 'p' for previous chapter
-    if (e.key === 'ArrowLeft' || e.key === 'p') {
-      e.preventDefault();
-      const currentUrl = window.location.href;
-      const chapterRegex = /\/chapter-(\d+)(?:\/)?$/;
-      const match = currentUrl.match(chapterRegex);
+  if (e.key === 'ArrowRight' || e.key === 'n' || e.key === 'N') {
+    e.preventDefault();
+    navigate(1);
+  } else if (e.key === 'ArrowLeft' || e.key === 'p' || e.key === 'P') {
+    e.preventDefault();
+    navigate(-1);
+  }
+}
 
-      if (match) {
-        const currentChapter = parseInt(match[1]);
-        if (currentChapter > 1) {
-          const prevChapter = currentChapter - 1;
-          const prevUrl = currentUrl.replace(chapterRegex, `/chapter-${prevChapter}/`);
-          window.location.href = prevUrl;
-        }
-      }
+let shortcutsEnabled = false;
+let keydownAttached = false;
+
+// The keydown listener is attached only when the shortcut is enabled AND a
+// rule matches this page - so pages with no matching rule pay nothing and
+// their keys are never intercepted.
+function refreshShortcutState() {
+  const shouldAttach = shortcutsEnabled && !!activeMatch;
+  if (shouldAttach && !keydownAttached) {
+    document.addEventListener('keydown', handleKeydown);
+    keydownAttached = true;
+  } else if (!shouldAttach && keydownAttached) {
+    document.removeEventListener('keydown', handleKeydown);
+    keydownAttached = false;
+  }
+}
+
+function setShortcutsEnabled(enabled) {
+  shortcutsEnabled = !!enabled;
+  refreshShortcutState();
+}
+
+function init() {
+  getSettings((rules, enabled) => {
+    activeMatch = findMatchingRule(window.location.href, rules);
+    if (activeMatch) {
+      addNavigationButtons(activeMatch.rule);
+      startObserver();
+    } else {
+      stopObserver();
     }
+    setShortcutsEnabled(enabled);
   });
 }
 
-// Initialize when page loads
 if (document.readyState === 'loading') {
-  document.addEventListener('DOMContentLoaded', () => {
-    addNavigationButtons();
-    addKeyboardShortcuts();
-  });
+  document.addEventListener('DOMContentLoaded', init);
 } else {
-  addNavigationButtons();
-  addKeyboardShortcuts();
+  init();
 }
 
-// Re-add buttons if page content changes (for dynamic sites)
-const observer = new MutationObserver(() => {
-  if (!document.getElementById('chapter-nav-extension')) {
-    addNavigationButtons();
+// Re-add the button panel if the host page's own script wipes the DOM
+// subtree it lives in (common on reader sites that re-render on navigation).
+// Only observed while a rule matches - disconnected otherwise so pages with
+// no match don't pay for a document-wide subtree observer.
+let observer = null;
+
+function startObserver() {
+  if (observer || !document.body) return;
+  observer = new MutationObserver(() => {
+    if (activeMatch && !document.getElementById('url-nav-extension')) {
+      addNavigationButtons(activeMatch.rule);
+    }
+  });
+  observer.observe(document.body, { childList: true, subtree: true });
+}
+
+function stopObserver() {
+  if (observer) {
+    observer.disconnect();
+    observer = null;
+  }
+}
+
+// Live-update when the popup/options page changes settings.
+chrome.storage.onChanged.addListener((changes, area) => {
+  if (area !== 'sync') return;
+  if (changes.shortcutsEnabled) {
+    setShortcutsEnabled(!!changes.shortcutsEnabled.newValue);
+  }
+  if (changes.rules) {
+    removeNavigationButtons();
+    activeMatch = null;
+    stopObserver();
+    init();
   }
 });
 
-observer.observe(document.body, {
-  childList: true,
-  subtree: true
+// Triggered by the background service worker when the declared
+// chrome://extensions/shortcuts command fires.
+chrome.runtime.onMessage.addListener((message) => {
+  if (!message) return;
+  if (message.action === 'go-next') navigate(1);
+  if (message.action === 'go-prev') navigate(-1);
 });
