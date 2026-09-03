@@ -52,6 +52,10 @@ When the current URL matches an enabled rule, a floating Next/Prev button
 panel appears on the page, and the toolbar popup shows which rule matched
 with its own Next/Prev buttons.
 
+If the on-page panel gets in the way, turn it off with **"Show buttons on
+the page"** in the popup (or Options), or click the small **×** on the panel
+itself. Navigation still works from the popup and the keyboard shortcut.
+
 ## Keyboard shortcut (optional, toggle-able)
 
 Two ways to jump to the next/previous part without touching the mouse, both

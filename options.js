@@ -74,11 +74,15 @@ document.addEventListener('DOMContentLoaded', () => {
     renderRules(rules);
   });
 
-  chrome.storage.sync.get({ shortcutsEnabled: true }, ({ shortcutsEnabled }) => {
+  chrome.storage.sync.get({ shortcutsEnabled: true, showPanel: true }, ({ shortcutsEnabled, showPanel }) => {
     document.getElementById('shortcutsToggle').checked = !!shortcutsEnabled;
+    document.getElementById('panelToggle').checked = showPanel !== false;
   });
   document.getElementById('shortcutsToggle').addEventListener('change', (e) => {
     chrome.storage.sync.set({ shortcutsEnabled: e.target.checked });
+  });
+  document.getElementById('panelToggle').addEventListener('change', (e) => {
+    chrome.storage.sync.set({ showPanel: e.target.checked });
   });
 
   const errorEl = document.getElementById('formError');
