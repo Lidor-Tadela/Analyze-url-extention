@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+  body {
+    width: 320px;
+    padding: 15px;
+    font-family: Arial, sans-serif;
+    margin: 0;
+  }
+  h3 { margin: 0 0 12px 0; font-size: 15px; text-align: center; }
+  .status {
+    font-size: 12px;
+    color: #333;
+    text-align: center;
+    margin-bottom: 12px;
+    min-height: 18px;
+  }
+  .status.nomatch { color: #999; }
+  button {
+    width: 100%;
+    padding: 10px;
+    margin: 5px 0;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: bold;
+    color: white;
+  }
+  button:disabled { opacity: 0.5; cursor: not-allowed; }
+  .next-btn { background: #4CAF50; }
+  .next-btn:hover:not(:disabled) { background: #45a049; }
+  .prev-btn { background: #2196F3; }
+  .prev-btn:hover:not(:disabled) { background: #1976D2; }
+  .setup-btn { background: #6a1b9a; }
+  .setup-btn:hover:not(:disabled) { background: #4a148c; }
+  .toggle-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-top: 12px;
+    font-size: 12px;
+  }
+  .options-link {
+    display: block;
+    text-align: center;
+    margin-top: 10px;
+    font-size: 12px;
+    color: #2196F3;
+    cursor: pointer;
+    text-decoration: underline;
+  }
+
+  /* --- Set up this page --- */
+  #setup { margin-top: 6px; }
+  .hint { font-size: 12px; color: #555; margin: 6px 0; }
+  .url-picker {
+    font-family: Menlo, Consolas, monospace;
+    font-size: 12px;
+    line-height: 1.9;
+    word-break: break-all;
+    background: #f4f4f4;
+    border-radius: 5px;
+    padding: 8px;
+    margin-bottom: 8px;
+  }
+  .numchip {
+    width: auto;
+    display: inline;
+    margin: 0 1px;
+    padding: 2px 6px;
+    font-size: 12px;
+    font-weight: bold;
+    background: #ffd54f;
+    color: #222;
+    border-radius: 4px;
+  }
+  .numchip:hover { background: #ffca28; }
+  .numchip.picked { background: #4CAF50; color: #fff; }
+  .field { font-size: 12px; margin: 8px 0; }
+  .field label { display: block; margin-bottom: 3px; color: #555; }
+  .field input[type=text],
+  .field input[type=number] {
+    width: 100%;
+    box-sizing: border-box;
+    padding: 6px;
+    font-size: 13px;
+    font-family: inherit;
+  }
+  .field.checkbox label { display: flex; align-items: center; gap: 6px; }
+  .field.checkbox input { width: auto; }
+  .preview {
+    font-size: 12px;
+    background: #e8f5e9;
+    border-radius: 5px;
+    padding: 8px;
+    margin: 8px 0;
+    word-break: break-all;
+    white-space: pre-line;
+  }
+  .preview.bad { background: #ffebee; color: #c62828; }
+  .row2 { display: flex; gap: 8px; }
+  .row2 button { margin: 0; }
+  .save-btn { background: #4CAF50; }
+  .cancel-btn { background: #9e9e9e; }
+</style>
+</head>
+<body>
+  <h3>Next Part Navigator</h3>
+  <div id="status" class="status">Checking page…</div>
+
+  <button id="nextBtn" class="next-btn" disabled>Next</button>
+  <button id="prevBtn" class="prev-btn" disabled>Previous</button>
+
+  <button id="setupBtn" class="setup-btn" hidden>Set up navigation for this page</button>
+
+  <div id="setup" hidden>
+    <!-- Shown when the page has its own Prev/Next chapter links -->
+    <div id="siteNavPane" hidden>
+      <div class="preview">✓ This site has its own Next / Previous chapter buttons. The extension will follow them, so side-stories and half-chapters work too.</div>
+      <div class="field">
+        <label for="siteNavLabel">Button label</label>
+        <input type="text" id="siteNavLabel" placeholder="Chapter">
+      </div>
+      <div class="row2">
+        <button id="siteNavSaveBtn" class="save-btn">Save</button>
+        <button id="siteNavCancelBtn" class="cancel-btn">Cancel</button>
+      </div>
+      <a id="useNumbersLink" class="options-link">Use a number in the URL instead</a>
+    </div>
+
+    <!-- Number picker (no site buttons, or user chose it) -->
+    <div id="numberPane" hidden>
+      <div class="hint">Click the number in the address below that changes between chapters / episodes:</div>
+      <div id="urlPicker" class="url-picker"></div>
+
+      <div id="setupDetails" hidden>
+        <div class="field">
+          <label for="labelInput">Button label</label>
+          <input type="text" id="labelInput" placeholder="Chapter">
+        </div>
+        <div class="field">
+          <label for="minInput">Lowest number (no “Previous” below this)</label>
+          <input type="number" id="minInput" value="1" min="0">
+        </div>
+        <div class="field checkbox">
+          <label><input type="checkbox" id="generalizeInput" checked> Also match other series / shows on this site</label>
+        </div>
+        <div id="preview" class="preview"></div>
+        <div class="row2">
+          <button id="saveBtn" class="save-btn">Save</button>
+          <button id="cancelBtn" class="cancel-btn">Cancel</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="toggle-row">
+    <label for="panelToggle">Show buttons on the page</label>
+    <input type="checkbox" id="panelToggle">
+  </div>
+  <div class="toggle-row">
+    <label for="shortcutsToggle">Keyboard shortcut</label>
+    <input type="checkbox" id="shortcutsToggle">
+  </div>
+  <a id="optionsLink" class="options-link">Manage site rules…</a>
+  <script src="rules.js"></script>
+  <script src="popup.js"></script>
+</body>
+</html>

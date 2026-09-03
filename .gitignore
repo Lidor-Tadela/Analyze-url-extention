@@ -1,0 +1,13 @@
+# IDE / editor
+.idea/
+.vscode/
+*.iml
+
+# Chrome extension build / signing
+*.crx
+*.pem
+*.zip
+
+# Dependencies / OS
+node_modules/
+.DS_Store
