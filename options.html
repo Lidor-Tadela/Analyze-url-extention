@@ -27,6 +27,21 @@
 <body>
   <h1>Next Part Navigator — site rules</h1>
   <p class="muted">
+    The easy way to add a rule: open a chapter/episode page, click the
+    extension icon, choose <strong>“Set up navigation for this page”</strong>
+    and click the number in the address that changes between parts. The rule
+    below is written for you. The form on this page is the manual /
+    regex-based alternative.
+  </p>
+
+  <h2>Existing rules</h2>
+  <table id="rulesTable">
+    <thead><tr><th>On</th><th>Name</th><th>Pattern</th><th></th></tr></thead>
+    <tbody id="rulesBody"></tbody>
+  </table>
+
+  <h2>Add a rule manually (advanced)</h2>
+  <p class="muted">
     A rule is a regular expression tested against the full page URL. It must
     contain exactly one capturing group, wrapped around the chapter/episode
     number - use <code>(?:...)</code> for any other group you need. For
@@ -36,14 +51,6 @@
     <code>site.com/thing/N</code> shape. The number can appear anywhere in
     the URL, not just at the end.
   </p>
-
-  <h2>Existing rules</h2>
-  <table id="rulesTable">
-    <thead><tr><th>On</th><th>Name</th><th>Pattern</th><th></th></tr></thead>
-    <tbody id="rulesBody"></tbody>
-  </table>
-
-  <h2>Add a rule</h2>
   <form id="addForm">
     <input type="text" id="ruleName" placeholder="Name (e.g. MangaSite)" required>
     <input type="text" id="ruleLabel" placeholder="Label shown on the button (e.g. Chapter, Episode)" value="Part">

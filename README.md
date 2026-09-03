@@ -5,15 +5,30 @@ shows/anime online and want to jump to the next chapter or episode without
 hunting for the site's own "next" button (and the ads around it).
 
 It ships with one working example site (Toonily) but isn't hardcoded to it —
-navigation is driven by a small **rule system**, configurable from the
-extension's options page, so it can be pointed at any site that encodes a
-chapter/episode number in its URL.
+navigation is driven by a small **rule system**, and you add rules for new
+sites without writing anything: open a chapter/episode page, click the number
+in its address, done.
 
-## How it works
+## Adding a site (no regex)
 
-A rule is a regular expression tested against the full page URL. It must
-contain **exactly one capturing group**, wrapped around the number to
-step through. That single mechanism covers any URL shape:
+1. Open a page whose URL contains the chapter/episode number, e.g.
+   `https://toonily.com/serie/some-series/chapter-5/`.
+2. Click the extension's toolbar icon → **"Set up navigation for this page"**.
+3. The address is shown with every number as a button. Click the one that
+   changes between parts (the `5`).
+4. It fills in the button label ("Chapter") and shows a live preview —
+   `Next → …/chapter-6/`. Leave **"Also match other series / shows on this
+   site"** ticked so the rule covers the whole site, not just this one page.
+5. **Save.** The Next/Prev panel appears immediately.
+
+Behind the scenes this writes a rule (a regex) for you; you can view, toggle,
+or delete rules — and hand-write one — on the **Options** page.
+
+## How rules work
+
+A rule is a regular expression tested against the full page URL, with
+**exactly one capturing group** wrapped around the number to step through.
+That single mechanism covers any URL shape:
 
 | Shape | Example pattern |
 |---|---|
@@ -27,8 +42,9 @@ step through. That single mechanism covers any URL shape:
 URL untouched - so it works regardless of where in the URL the number sits.
 
 Manage rules at the extension's **Options** page: enable/disable built-ins,
-add your own (with a "Test pattern" preview against a real URL before
-saving), or delete custom ones. Rules sync via `chrome.storage.sync`.
+delete custom ones, or add one by hand (with a "Test pattern" preview against
+a real URL before saving) if the click-the-number flow guessed wrong. Rules
+sync via `chrome.storage.sync`.
 
 ## Using it on a page
 
