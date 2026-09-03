@@ -117,25 +117,42 @@
   <button id="setupBtn" class="setup-btn" hidden>Set up navigation for this page</button>
 
   <div id="setup" hidden>
-    <div class="hint">Click the number in the address below that changes between chapters / episodes:</div>
-    <div id="urlPicker" class="url-picker"></div>
-
-    <div id="setupDetails" hidden>
+    <!-- Shown when the page has its own Prev/Next chapter links -->
+    <div id="siteNavPane" hidden>
+      <div class="preview">✓ This site has its own Next / Previous chapter buttons. The extension will follow them, so side-stories and half-chapters work too.</div>
       <div class="field">
-        <label for="labelInput">Button label</label>
-        <input type="text" id="labelInput" placeholder="Chapter">
+        <label for="siteNavLabel">Button label</label>
+        <input type="text" id="siteNavLabel" placeholder="Chapter">
       </div>
-      <div class="field">
-        <label for="minInput">Lowest number (no “Previous” below this)</label>
-        <input type="number" id="minInput" value="1" min="0">
-      </div>
-      <div class="field checkbox">
-        <label><input type="checkbox" id="generalizeInput" checked> Also match other series / shows on this site</label>
-      </div>
-      <div id="preview" class="preview"></div>
       <div class="row2">
-        <button id="saveBtn" class="save-btn">Save</button>
-        <button id="cancelBtn" class="cancel-btn">Cancel</button>
+        <button id="siteNavSaveBtn" class="save-btn">Save</button>
+        <button id="siteNavCancelBtn" class="cancel-btn">Cancel</button>
+      </div>
+      <a id="useNumbersLink" class="options-link">Use a number in the URL instead</a>
+    </div>
+
+    <!-- Number picker (no site buttons, or user chose it) -->
+    <div id="numberPane" hidden>
+      <div class="hint">Click the number in the address below that changes between chapters / episodes:</div>
+      <div id="urlPicker" class="url-picker"></div>
+
+      <div id="setupDetails" hidden>
+        <div class="field">
+          <label for="labelInput">Button label</label>
+          <input type="text" id="labelInput" placeholder="Chapter">
+        </div>
+        <div class="field">
+          <label for="minInput">Lowest number (no “Previous” below this)</label>
+          <input type="number" id="minInput" value="1" min="0">
+        </div>
+        <div class="field checkbox">
+          <label><input type="checkbox" id="generalizeInput" checked> Also match other series / shows on this site</label>
+        </div>
+        <div id="preview" class="preview"></div>
+        <div class="row2">
+          <button id="saveBtn" class="save-btn">Save</button>
+          <button id="cancelBtn" class="cancel-btn">Cancel</button>
+        </div>
       </div>
     </div>
   </div>

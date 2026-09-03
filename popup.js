@@ -1,11 +1,12 @@
 // Popup script.
 //
-// If a rule already matches the current tab: show Next/Prev (navigation is
-// done by messaging the content script, which owns the matched rule).
+// Rule already matches the tab -> show Next/Prev (the content script owns
+// the matched rule and does the navigation).
 //
-// If no rule matches: offer a "set up this page" flow where the user clicks
-// the number in the URL that changes between chapters/episodes and the rule
-// is generated for them (see buildRuleFromExample in rules.js) - no regex.
+// No rule yet -> "set up this page":
+//   * if the page has its own Prev/Next chapter links, offer to follow them
+//     (handles side-stories / half-chapters that URL math can't)
+//   * otherwise, click the number in the URL that changes between parts
 
 document.addEventListener('DOMContentLoaded', () => {
   const $ = (id) => document.getElementById(id);
@@ -14,6 +15,12 @@ document.addEventListener('DOMContentLoaded', () => {
   const prevBtn = $('prevBtn');
   const setupBtn = $('setupBtn');
   const setup = $('setup');
+  const siteNavPane = $('siteNavPane');
+  const siteNavLabel = $('siteNavLabel');
+  const siteNavSaveBtn = $('siteNavSaveBtn');
+  const siteNavCancelBtn = $('siteNavCancelBtn');
+  const useNumbersLink = $('useNumbersLink');
+  const numberPane = $('numberPane');
   const urlPicker = $('urlPicker');
   const setupDetails = $('setupDetails');
   const labelInput = $('labelInput');
@@ -30,6 +37,7 @@ document.addEventListener('DOMContentLoaded', () => {
   let pageUrl = '';
   let ruleSet = [];
   let pickedSpan = null;
+  let pendingSiteNav = null;
 
   chrome.tabs.query({ active: true, currentWindow: true }, ([tab]) => {
     if (!tab) return;
@@ -37,7 +45,8 @@ document.addEventListener('DOMContentLoaded', () => {
     pageUrl = tab.url || '';
 
     chrome.storage.sync.get({ rules: null }, ({ rules }) => {
-      ruleSet = rules && rules.length ? rules : DEFAULT_RULES.map((r) => ({ ...r }));
+      const stored = rules && rules.length ? rules : DEFAULT_RULES.map((r) => ({ ...r }));
+      ruleSet = migrateRules(stored);
       const found = findMatchingRule(pageUrl, ruleSet);
       if (found) {
         statusEl.textContent = `Matched: ${found.rule.name}`;
@@ -76,18 +85,62 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // --- "set up this page" flow -------------------------------------------
 
-  setupBtn.addEventListener('click', () => {
-    setupBtn.hidden = true;
-    setup.hidden = false;
-    renderPicker();
-  });
+  function guessLabelForPage() {
+    const spans = findNumberSpans(pageUrl);
+    return spans.length ? guessLabel(pageUrl, spans[0].start) : 'Chapter';
+  }
 
-  cancelBtn.addEventListener('click', () => {
+  function resetSetup() {
     setup.hidden = true;
+    siteNavPane.hidden = true;
+    numberPane.hidden = true;
     setupDetails.hidden = true;
     setupBtn.hidden = false;
     pickedSpan = null;
+    pendingSiteNav = null;
+  }
+
+  setupBtn.addEventListener('click', () => {
+    setupBtn.hidden = true;
+    setup.hidden = false;
+    // Ask the content script whether the page has its own Prev/Next links.
+    if (activeTabId == null) return showNumberPane();
+    chrome.tabs.sendMessage(activeTabId, { action: 'detect-site-nav' }, (resp) => {
+      if (chrome.runtime.lastError || !resp || !resp.siteNav) return showNumberPane();
+      showSiteNavPane(resp.siteNav);
+    });
   });
+
+  siteNavCancelBtn.addEventListener('click', resetSetup);
+  cancelBtn.addEventListener('click', resetSetup);
+  useNumbersLink.addEventListener('click', showNumberPane);
+
+  function showSiteNavPane(siteNav) {
+    pendingSiteNav = siteNav;
+    numberPane.hidden = true;
+    siteNavPane.hidden = false;
+    siteNavLabel.value = guessLabelForPage();
+  }
+
+  siteNavSaveBtn.addEventListener('click', () => {
+    if (!pendingSiteNav) return;
+    const rule = buildSelectorRule(pageUrl, {
+      label: siteNavLabel.value.trim() || 'Chapter',
+      name: guessName(pageUrl),
+      nextSelector: pendingSiteNav.nextSelector,
+      prevSelector: pendingSiteNav.prevSelector
+    });
+    if (!rule) return showNumberPane();
+    ruleSet.push(rule);
+    chrome.storage.sync.set({ rules: ruleSet }, () => window.close());
+  });
+
+  function showNumberPane() {
+    pendingSiteNav = null;
+    siteNavPane.hidden = true;
+    numberPane.hidden = false;
+    renderPicker();
+  }
 
   function renderPicker() {
     urlPicker.textContent = '';

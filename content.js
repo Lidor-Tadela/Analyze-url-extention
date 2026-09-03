@@ -14,16 +14,63 @@ function getSettings(cb) {
   chrome.storage.sync.get(
     { rules: null, shortcutsEnabled: true, showPanel: true },
     (data) => {
-      const rules = data.rules && data.rules.length ? data.rules : DEFAULT_RULES;
-      cb(rules, data.shortcutsEnabled, data.showPanel !== false);
+      const stored = data.rules && data.rules.length ? data.rules : DEFAULT_RULES;
+      cb(migrateRules(stored), data.shortcutsEnabled, data.showPanel !== false);
     }
   );
 }
 
+// Resolve a CSS selector on the page to a usable same-origin href.
+function pickHref(selector) {
+  if (!selector) return null;
+  let el;
+  try {
+    el = document.querySelector(selector);
+  } catch (e) {
+    return null;
+  }
+  return el ? sameOriginHref(el.href || el.getAttribute('href'), window.location.href) : null;
+}
+
 function navigate(delta) {
   if (!activeMatch) return;
-  const nextUrl = computeAdjacentUrl(window.location.href, activeMatch.rule, delta);
+  const rule = activeMatch.rule;
+  const wantNext = delta > 0;
+
+  // 1. The rule's own Prev/Next link selector, if it has one. A selector
+  //    rule that finds no link is at the start/end of the series - don't
+  //    fall through to a wrong URL-math guess.
+  const ownSel = wantNext ? rule.nextSelector : rule.prevSelector;
+  if (ownSel) {
+    const href = pickHref(ownSel);
+    if (href) window.location.href = href;
+    return;
+  }
+
+  // 2. A recognised site nav link (Madara "next_page" etc.) if the page has one.
+  for (const pair of KNOWN_NAV) {
+    const href = pickHref(wantNext ? pair.next : pair.prev);
+    if (href) {
+      window.location.href = href;
+      return;
+    }
+  }
+
+  // 3. Step the number in the URL.
+  const nextUrl = computeAdjacentUrl(window.location.href, rule, delta);
   if (nextUrl) window.location.href = nextUrl;
+}
+
+// Report the page's own Prev/Next chapter links to the popup's setup flow.
+function detectSiteNav() {
+  for (const pair of KNOWN_NAV) {
+    const nextHref = pickHref(pair.next);
+    const prevHref = pickHref(pair.prev);
+    if (nextHref || prevHref) {
+      return { nextSelector: pair.next, prevSelector: pair.prev, nextHref, prevHref };
+    }
+  }
+  return null;
 }
 
 // --- on-page Next/Prev panel ------------------------------------------------
@@ -211,10 +258,13 @@ chrome.storage.onChanged.addListener((changes, area) => {
   }
 });
 
-// Triggered by the background service worker when the declared
-// chrome://extensions/shortcuts command fires.
-chrome.runtime.onMessage.addListener((message) => {
+// Messages from the background service worker (keyboard command) and the
+// popup (navigation buttons + "does this page have its own Prev/Next?").
+chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (!message) return;
   if (message.action === 'go-next') navigate(1);
   if (message.action === 'go-prev') navigate(-1);
+  if (message.action === 'detect-site-nav') {
+    sendResponse({ siteNav: detectSiteNav(), url: window.location.href });
+  }
 });

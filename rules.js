@@ -11,15 +11,39 @@
 // exactly one capturing group, wrapped around the number. Everything else
 // in the URL is preserved untouched when stepping to an adjacent page.
 
+// A rule can navigate two ways:
+//   1. Follow the page's own Prev/Next links  (nextSelector / prevSelector)
+//   2. Step a number in the URL               (pattern with one capture group)
+// (1) wins when present - it's the only thing that copes with side-stories
+// and odd numbering (e.g. Toonily: chapter-175 -> chapter-175-5 -> ...
+// -> chapter-175-8 -> chapter-175-8_1). (2) is the fallback.
+
+// Reader/chapter Prev-Next link selectors, most specific first. Used to
+// auto-detect a site's own navigation during rule setup, and as a safety
+// net at navigation time.
+const KNOWN_NAV = [
+  { next: '.btn.next_page', prev: '.btn.prev_page' },             // Madara theme (Toonily & many manga sites)
+  { next: 'a.next_page', prev: 'a.prev_page' },
+  { next: '.nav-next a', prev: '.nav-previous a' },               // WordPress
+  { next: 'a.next-chapter, a.next_chapter', prev: 'a.prev-chapter, a.prev_chapter' },
+  { next: '.select-pagination .nav-next a', prev: '.select-pagination .nav-prev a' }
+];
+
+const TOONILY_DEFAULTS = {
+  name: 'Toonily',
+  pattern: '^https://toonily\\.com/serie/[^/]+/chapter-([\\w.-]+)/?$',
+  nextSelector: '.btn.next_page',
+  prevSelector: '.btn.prev_page'
+};
+
 const DEFAULT_RULES = [
   {
     id: 'builtin-toonily-chapter',
-    name: 'Toonily (chapter)',
     label: 'Chapter',
     enabled: true,
     builtIn: true,
-    pattern: '^https://toonily\\.com/serie/[^/]+/chapter-(\\d+)/?$',
-    min: 1
+    min: 1,
+    ...TOONILY_DEFAULTS
   },
   {
     id: 'builtin-example-episode',
@@ -31,6 +55,37 @@ const DEFAULT_RULES = [
     min: 1
   }
 ];
+
+// Patch rules loaded from storage that predate a feature (currently: give
+// the built-in Toonily rule its Prev/Next link selectors + wider pattern).
+// Returns the same array reference when nothing changed.
+function migrateRules(rules) {
+  if (!Array.isArray(rules)) return rules;
+  let changed = false;
+  const out = rules.map((r) => {
+    if (r && r.id === 'builtin-toonily-chapter' && !r.nextSelector) {
+      changed = true;
+      return { ...r, ...TOONILY_DEFAULTS };
+    }
+    return r;
+  });
+  return changed ? out : rules;
+}
+
+// Resolve an href against a base and return it only if same-origin and not
+// a link to the current page. Null otherwise.
+function sameOriginHref(href, baseUrl) {
+  if (!href) return null;
+  try {
+    const u = new URL(href, baseUrl);
+    const base = new URL(baseUrl);
+    if (u.origin !== base.origin) return null;
+    if (u.href === base.href) return null;
+    return u.href;
+  } catch (e) {
+    return null;
+  }
+}
 
 // Counts capturing groups in a pattern without needing a matching string:
 // appending "|" adds an empty alternative that always matches "", and the
@@ -74,6 +129,7 @@ function computeAdjacentUrl(url, rule, delta) {
 
   const [start, end] = m.indices[1];
   const numStr = m[1];
+  if (!/^\d+$/.test(numStr)) return null; // capture isn't a plain integer - can't step it
   const num = parseInt(numStr, 10);
   if (isNaN(num)) return null;
 
@@ -204,16 +260,68 @@ function buildRuleFromExample(url, span, options) {
   return rule;
 }
 
+// Build a rule that navigates by following the page's own Prev/Next links.
+// The pattern just decides which pages the rule applies to: fixed parts of
+// the URL stay literal, slug-like segments become [^/]+, and the final path
+// segment's identifier becomes a loose (.+?) capture (so chapter-175,
+// chapter-175-8 and chapter-175-8_1 all match the one rule).
+function buildSelectorRule(url, options) {
+  const opts = options || {};
+  const tailIx = url.search(/[?#]/);
+  const core = tailIx === -1 ? url : url.slice(0, tailIx);
+
+  const originMatch = core.match(/^([a-z]+:\/\/[^/]+)(\/.*)?$/i);
+  if (!originMatch) return null;
+  const origin = originMatch[1];
+  const path = (originMatch[2] || '').replace(/\/+$/, '');
+  const parts = path.split('/'); // ['', seg1, ..., lastSeg]
+  if (parts.length < 2 || !parts[parts.length - 1]) return null;
+
+  const lastSeg = parts[parts.length - 1];
+  const mid = parts
+    .slice(0, -1)
+    .map((seg) => {
+      if (!seg) return seg;
+      const slugLike = /-/.test(seg) || (/[A-Za-z]/.test(seg) && seg.length >= 12);
+      return slugLike ? '[^/]+' : escapeRegexLiteral(seg);
+    })
+    .join('/');
+
+  const litPrefix = (lastSeg.match(/^\D*/) || [''])[0]; // "chapter-" from "chapter-175-8_1"
+  const lastPat = escapeRegexLiteral(litPrefix) + '(.+?)';
+  const pattern = '^' + escapeRegexLiteral(origin) + mid + '/' + lastPat + '/?(?:[?#].*)?$';
+  if (countGroups(pattern) !== 1) return null;
+
+  const lastSegStart = core.replace(/\/+$/, '').lastIndexOf('/') + 1;
+  const rule = {
+    id: 'custom-' + Date.now(),
+    name: opts.name || guessName(url),
+    label: opts.label || guessLabel(core, lastSegStart + litPrefix.length),
+    pattern,
+    enabled: true,
+    builtIn: false,
+    nextSelector: opts.nextSelector || null,
+    prevSelector: opts.prevSelector || null,
+    min: 0
+  };
+  if (!findMatchingRule(url, [rule])) return null;
+  return rule;
+}
+
 if (typeof module !== 'undefined' && module.exports) {
   module.exports = {
     DEFAULT_RULES,
+    KNOWN_NAV,
     findMatchingRule,
     computeAdjacentUrl,
     compileRule,
     countGroups,
+    migrateRules,
+    sameOriginHref,
     findNumberSpans,
     buildPatternFromExample,
     buildRuleFromExample,
+    buildSelectorRule,
     guessLabel,
     guessName
   };

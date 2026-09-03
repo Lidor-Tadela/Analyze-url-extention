@@ -3,7 +3,10 @@
 
 function loadRules(cb) {
   chrome.storage.sync.get({ rules: null }, ({ rules }) => {
-    cb(rules && rules.length ? rules : DEFAULT_RULES.map((r) => ({ ...r })));
+    const stored = rules && rules.length ? rules : DEFAULT_RULES.map((r) => ({ ...r }));
+    const migrated = migrateRules(stored);
+    if (migrated !== stored && rules && rules.length) saveRules(migrated); // persist an upgrade
+    cb(migrated);
   });
 }
 
@@ -29,6 +32,12 @@ function renderRules(rules) {
 
     const nameTd = document.createElement('td');
     nameTd.textContent = rule.name + (rule.builtIn ? ' (built-in)' : '');
+    if (rule.nextSelector || rule.prevSelector) {
+      const tag = document.createElement('div');
+      tag.className = 'muted';
+      tag.textContent = 'follows the site’s own Prev/Next links';
+      nameTd.appendChild(tag);
+    }
 
     const patternTd = document.createElement('td');
     const codeEl = document.createElement('code');
