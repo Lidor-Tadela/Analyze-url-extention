@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Next Part Navigator — Rules</title>
+<style>
+  body {
+    font-family: Arial, sans-serif;
+    max-width: 720px;
+    margin: 30px auto;
+    padding: 0 16px;
+    color: #222;
+  }
+  h1 { font-size: 20px; }
+  h2 { font-size: 15px; margin-top: 28px; }
+  table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+  th, td { text-align: left; padding: 6px 8px; border-bottom: 1px solid #eee; font-size: 13px; vertical-align: top; }
+  code { background: #f4f4f4; padding: 1px 4px; border-radius: 3px; word-break: break-all; }
+  .muted { color: #888; font-size: 12px; }
+  form { margin-top: 12px; display: grid; gap: 8px; max-width: 520px; }
+  input[type=text] { padding: 6px; font-size: 13px; }
+  button { padding: 8px 14px; font-size: 13px; cursor: pointer; }
+  .error { font-size: 12px; min-height: 16px; }
+  .row-actions button { padding: 4px 8px; font-size: 12px; margin-right: 4px; }
+</style>
+</head>
+<body>
+  <h1>Next Part Navigator — site rules</h1>
+  <p class="muted">
+    A rule is a regular expression tested against the full page URL. It must
+    contain exactly one capturing group, wrapped around the chapter/episode
+    number - use <code>(?:...)</code> for any other group you need. For
+    example <code>^https://example\.com/show/[^/]+/episode/(\d+)/?$</code>
+    matches a <code>site.com/thing/episode/N</code> shape, and
+    <code>^https://example\.com/manga/[^/]+/(\d+)/?$</code> matches a
+    <code>site.com/thing/N</code> shape. The number can appear anywhere in
+    the URL, not just at the end.
+  </p>
+
+  <h2>Existing rules</h2>
+  <table id="rulesTable">
+    <thead><tr><th>On</th><th>Name</th><th>Pattern</th><th></th></tr></thead>
+    <tbody id="rulesBody"></tbody>
+  </table>
+
+  <h2>Add a rule</h2>
+  <form id="addForm">
+    <input type="text" id="ruleName" placeholder="Name (e.g. MangaSite)" required>
+    <input type="text" id="ruleLabel" placeholder="Label shown on the button (e.g. Chapter, Episode)" value="Part">
+    <input type="text" id="rulePattern" placeholder="Regex pattern, one capturing group around the number" required>
+    <input type="text" id="testUrl" placeholder="Test URL (paste a real page URL to verify the pattern first)">
+    <div class="error" id="formError"></div>
+    <div>
+      <button type="button" id="testBtn">Test pattern</button>
+      <button type="submit">Add rule</button>
+    </div>
+  </form>
+
+  <h2>Keyboard shortcut</h2>
+  <label><input type="checkbox" id="shortcutsToggle"> Enable Next/Previous keyboard shortcut</label>
+  <p class="muted">
+    Default page keys (while the page has focus): → / N for next, ← / P for
+    previous. A global shortcut that works without clicking the page first
+    can be set at <code>chrome://extensions/shortcuts</code> - both are
+    controlled by this same toggle.
+  </p>
+
+  <script src="rules.js"></script>
+  <script src="options.js"></script>
+</body>
+</html>
